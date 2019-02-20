@@ -1,0 +1,96 @@
+# -*- coding: utf-8 -*-
+
+
+import win32com,os,re
+from win32com.client import Dispatch,DispatchEx
+
+#xlsApp=Dispatch('Excel.Application')
+xlsApp=DispatchEx('Excel.Application')
+
+def GetExcelList(FilePath):
+    SuffixName='.xls'
+    lenth=len(SuffixName)
+    for root,dirs,files in os.walk(FilePath):
+        for file in files:
+            if file[-lenth:]==SuffixName:
+                FileList.append(file)
+    return FileList
+
+#
+FilePath=input("excel路径：")
+
+
+
+#excel列表
+FileList=[]
+GetExcelList(FilePath)
+
+#打开公式表格
+book = xlsApp.Workbooks.Open(os.path.join(os.getcwd(),'公式.xlsx'))
+
+
+try:
+    #获取sheet页
+    sheet1=book.Worksheets('sheet1')
+    sheet2=book.Worksheets('sheet2')
+
+    sheet3=book.Worksheets('sheet3')
+    sheet4=book.Worksheets('sheet4')
+
+    passageways=(input("输入复制通道(0:不复制,保持空白;1:复制上跳线;2:复制下跳线)："))
+    while passageways not in ('0','1','2'):
+        passageways=(input("输入复制通道数字(0:不复制,保持空白;1:复制上跳线;2:复制下跳线)："))
+    
+
+
+    for m in range(0,len(FileList)):
+        book2=xlsApp.Workbooks.Open(os.path.join(FilePath,FileList[m]))#打开数据表格
+        sheet_r=book2.Worksheets(1)
+        sheet_r.Range('D3:F77').Copy(sheet1.Range("E3:G77"))#copy数据
+        book2.Close(SaveChanges=False)
+    
+        if m!=0:
+            sheet2.Range(sheet2.Columns(16),sheet2.Columns(21)).Copy(sheet2.Range(sheet2.Columns(16+m*6),sheet2.Columns(21+m*6)))#copy格式
+        
+        key = FileList[m]
+        p1 = r".+?(?=.xls)"
+        excelname=re.compile(p1).findall(key)[0]
+        sheet2.Cells(1,17+m*6).Value=excelname
+
+        print(m+1,excelname+'...')
+
+        #对应通道复制
+        if passageways=='1':
+            sheet1.Range("Q28:S41").Copy()
+            sheet1.Range("Y28").PasteSpecial(Paste=-4163)
+            
+        elif passageways=='2':
+            sheet1.Range("U28:W41").Copy()
+            sheet1.Range("AC28").PasteSpecial(Paste=-4163)
+        
+        #写入数据
+        sheet2.Range("K3:M91").Copy()
+        sheet2.Range(sheet2.Cells(3,17+m*6),sheet2.Cells(91,19+m*6)).PasteSpecial(Paste=-4163)
+               
+
+        #
+        if m>1 and m%2==0:
+            sheet4.Range("B4:K4").Copy(sheet4.Range(sheet4.Cells(4+m,2),sheet4.Cells(4+m,11)))
+        elif m>1 and m%2!=0:
+            sheet4.Range("B5:K5").Copy(sheet4.Range(sheet4.Cells(4+m,2),sheet4.Cells(4+m,11)))
+
+        #
+        sheet3.Range("C4:K4").Copy()
+        sheet4.Range(sheet4.Cells(4+m,3),sheet4.Cells(4+m,11)).PasteSpecial(Paste=-4163)
+        sheet4.Cells(4+m,2).Value=excelname
+        
+    
+    book.SaveAs(os.path.join(os.getcwd(),'result.xlsx'))
+    print("表格处理完成，总共%r个表格"%(m+1))
+
+
+finally:
+    book.Close(SaveChanges=False)
+    xlsApp.Application.Quit()
+    del xlsApp
+
