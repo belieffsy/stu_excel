@@ -1,0 +1,98 @@
+# -*- coding: utf-8 -*-
+
+import win32com,os,re,xlrd
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from win32com.client import Dispatch,DispatchEx
+
+#xlsApp=Dispatch('Excel.Application')
+xlsApp=DispatchEx('Excel.Application')
+
+
+#获取文件夹excel列表
+def GetExcelList(FilePath):
+    SuffixName='.xls'
+    lenth=len(SuffixName)
+    for root,dirs,files in os.walk(FilePath):
+        for file in files:
+            if file[-lenth:]==SuffixName:
+                FileList.append(file)
+    return FileList
+
+def copysheet(sheet,sheet2):
+    sheet.Copy(None,sheet2)
+
+def WriteData(FileList):
+    xllen=len(FileList)
+    
+    for xllen in range(0,len(FileList)):
+        key = FileList[xllen]
+        p1 = r".+?(?=.xls)"
+        pattern1 = re.compile(p1)
+        sheetname=pattern1.findall(key)[0]
+                
+        r_file=xlrd.open_workbook(FileList[xllen])
+        r_sheet=r_file.sheets()[0]
+        for row in range(0,80):
+            for col in range(0,6):
+                Value=r_sheet.row(row)[col].value
+                col_letter=get_column_letter(col+1)
+                row2=row+1
+                ws.cell('%s%s'%(col_letter,row2)).value=Value
+        ws.title=sheetname
+        wb.save(FileList[xllen])
+        print('%s...'%FileList[xllen])
+
+def WriteResult(FileList):
+    for xllen in range(0,len(FileList)):
+        try:
+            key = FileList[xllen]
+            p1 = r".+?(?=.xls)"
+            pattern1 = re.compile(p1)
+            sheetname=pattern1.findall(key)[0]
+            book = xlsApp.Workbooks.Open(os.path.join(os.getcwd(),FileList[xllen]))
+            sheet=book.Worksheets(sheetname)
+            copysheet(sheet,sheet2)
+            if xllen==0:
+                sheet.Range('T3:AC3').Copy(sheet2.Range("B2:K2"))
+            for i in range(20,30):
+                value=sheet.Cells(4,i).Value
+                sheet2.Cells(3+xllen,i-18).Value=value
+                sheet2.Cells(3+xllen,1).Value=sheetname
+        finally:
+            book.Close(SaveChanges=False)
+#打开公式表格
+wb = load_workbook('公式.xlsx')
+ws = wb.active
+
+FileList=[]
+FilePath=input("excel路径:")
+GetExcelList(FilePath)
+print(FileList)
+
+
+#改变当前工作路径
+os.chdir(FilePath)
+WriteData(FileList)
+print('已全部写入，总共 %s 个表格'%len(FileList))
+print('正在生成汇总表格')
+
+#新建表格
+try:
+    book2=xlsApp.Workbooks.Add()
+    sheet2=book2.Worksheets.Add()
+    sheet2.Name="汇总"
+
+    WriteResult(FileList)
+
+    book2.SaveAs(os.path.join(os.getcwd(),'Result.xlsx'))
+    
+finally:
+    
+    print('已成汇总表格 Result.xlsx ')
+
+    book2.Close()
+    xlsApp.Application.Quit()
+    del xlsApp
+
+
